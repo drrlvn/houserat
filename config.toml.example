@@ -1,0 +1,21 @@
+bot_token = "<token>"
+
+[[user]]
+name = "User 1"
+username = "user1"
+chat_id = 123456
+
+[[user]]
+name = "User 2"
+username = "user2"
+chat_id = 654321
+
+[[device]]
+mac_address = "01:23:45:67:89:AB"
+owner = "User 1"
+subscriber = "User 2"
+
+[[device]]
+mac_address = "00:11:22:33:44:55"
+owner = "User 2"
+subscriber = "User 1"

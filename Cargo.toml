@@ -1,0 +1,18 @@
+[package]
+name = "houserat"
+description = "Notifies when known devices connect to the network"
+version = "0.1.0"
+authors = ["Dror Levin <spatz@psybear.com>"]
+edition = "2018"
+repository = "https://github.com/drrlvn/houserat/"
+license = "GPL-3.0-or-later"
+
+[dependencies]
+etherparse = "0.8.2"
+pcap = "0.7.0"
+reqwest = "0.9.19"
+serde = { version = "1.0.98", features = ["derive"] }
+snafu = "0.4.4"
+structopt = "0.2.18"
+toml = "0.5.3"
+url = "1.7.2"
