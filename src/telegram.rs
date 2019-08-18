@@ -66,7 +66,7 @@ impl Message {
         }
     }
 
-    pub fn send(self, client: &Client) {
-        client.post(&self).unwrap();
+    pub fn send(self, client: &Client) -> crate::Result<()> {
+        Ok(client.post(&self)?)
     }
 }

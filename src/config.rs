@@ -1,5 +1,6 @@
 use crate::mac_address::MacAddress;
 use serde::Deserialize;
+use snafu::ResultExt;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -41,7 +42,11 @@ pub struct Config {
 
 impl Config {
     pub fn from_file<P: AsRef<Path>>(path: P) -> crate::Result<Config> {
-        let config_content = std::fs::read(path.as_ref())?;
+        let path = path.as_ref();
+        let config_content =
+            std::fs::read(path).with_context(|| crate::error::ConfigNotFoundError {
+                path: path.to_path_buf(),
+            })?;
         let config_data: ConfigData = toml::from_slice(&config_content)?;
         let users: HashMap<String, User> = config_data
             .users
@@ -52,21 +57,29 @@ impl Config {
             .devices
             .into_iter()
             .map(|d| {
-                let owner = users.get(&d.owner).unwrap();
-                let subscriber = users.get(&d.subscriber).unwrap();
-                (
+                let owner = users.get(&d.owner).ok_or_else(|| unknown_user(&d.owner))?;
+                let subscriber = users
+                    .get(&d.subscriber)
+                    .ok_or_else(|| unknown_user(&d.subscriber))?;
+                Ok((
                     d.mac_address,
                     Notification {
                         name: owner.name.clone(),
                         username: owner.username.clone(),
                         chat_id: subscriber.chat_id,
                     },
-                )
+                ))
             })
-            .collect();
+            .collect::<Result<HashMap<_, _>, crate::error::Error>>()?;
         Ok(Config {
             bot_token: config_data.bot_token,
             rules,
         })
+    }
+}
+
+fn unknown_user(user: &str) -> crate::error::Error {
+    crate::error::Error::UnknownUser {
+        user: user.to_string(),
     }
 }

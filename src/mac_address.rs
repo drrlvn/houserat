@@ -1,6 +1,5 @@
 use serde::Deserialize;
-use std::array::TryFromSliceError;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 use std::fmt;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
@@ -8,8 +7,8 @@ use std::fmt;
 pub struct MacAddress([u8; 6]);
 
 impl MacAddress {
-    pub fn from_slice(data: &[u8]) -> Result<MacAddress, TryFromSliceError> {
-        Ok(MacAddress(data.try_into()?))
+    pub fn new(data: [u8; 6]) -> MacAddress {
+        Self(data)
     }
 }
 
@@ -24,12 +23,12 @@ impl TryFrom<String> for MacAddress {
             *octet = if let Some(Ok(n)) = nums.next() {
                 n
             } else {
-                return Err(Self::Error::TryFromMacAddressError { value });
+                return Err(Self::Error::InvalidMacAddressError { value });
             }
         }
 
         if nums.next().is_some() {
-            return Err(Self::Error::TryFromMacAddressError { value });
+            return Err(Self::Error::InvalidMacAddressError { value });
         }
 
         Ok(MacAddress(mac_addresses))
