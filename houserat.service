@@ -1,0 +1,13 @@
+[Unit]
+Description=Monitor devices connecting to network
+After=network.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+ExecStart=/usr/local/bin/houserat --config-file /etc/houserat/config.toml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
