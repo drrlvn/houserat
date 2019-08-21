@@ -1,0 +1,20 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Update rust
+      run: |
+        rustup update
+        rustup component add clippy rustfmt
+    - name: Check
+      run: |
+        cargo fmt -- --check
+        cargo clippy -- -D warnings
+        cargo check
