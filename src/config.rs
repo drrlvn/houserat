@@ -1,14 +1,20 @@
 use crate::mac_address::MacAddress;
+use lazy_static::lazy_static;
 use serde::Deserialize;
 use snafu::ResultExt;
 use std::collections::HashMap;
 use std::path::Path;
 
+lazy_static! {
+    static ref DEFAULT_ICON: String = "👤".to_string();
+}
+
 #[derive(Clone, Debug, Deserialize)]
 struct User {
     name: String,
-    username: String,
-    chat_id: i64,
+    icon: Option<String>,
+    username: Option<String>,
+    chat_id: Option<i64>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -30,7 +36,9 @@ struct ConfigData {
 #[derive(Debug)]
 pub struct Notification {
     pub name: String,
-    pub username: String,
+    pub icon: Option<String>,
+    pub username: Option<String>,
+    pub subscriber_name: String,
     pub chat_id: i64,
 }
 
@@ -38,6 +46,24 @@ pub struct Notification {
 pub struct Config {
     pub bot_token: String,
     pub rules: HashMap<MacAddress, Notification>,
+}
+
+impl std::fmt::Display for Notification {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if self.username.is_some() {
+            write!(f, "[")?;
+        }
+        write!(
+            f,
+            "{} {}",
+            self.icon.as_ref().unwrap_or(&*DEFAULT_ICON),
+            self.name
+        )?;
+        if let Some(username) = &self.username {
+            write!(f, "](t.me/{})", username)?;
+        }
+        write!(f, " arrived")
+    }
 }
 
 impl Config {
@@ -61,12 +87,20 @@ impl Config {
                 let subscriber = users
                     .get(&d.subscriber)
                     .ok_or_else(|| unknown_user(&d.subscriber))?;
+                let chat_id =
+                    subscriber
+                        .chat_id
+                        .ok_or_else(|| crate::error::Error::MissingChatId {
+                            user: subscriber.name.clone(),
+                        })?;
                 Ok((
                     d.mac_address,
                     Notification {
                         name: owner.name.clone(),
+                        icon: owner.icon.clone(),
                         username: owner.username.clone(),
-                        chat_id: subscriber.chat_id,
+                        subscriber_name: subscriber.name.clone(),
+                        chat_id,
                     },
                 ))
             })

@@ -30,9 +30,9 @@ fn run() -> Result<()> {
     let opt = Opt::from_args();
     let config = config::Config::from_file(opt.config_file)?;
 
-    let mut cap = pcap::Capture::from_device(pcap::Device::lookup()?)?
-        .promisc(true)
-        .open()?;
+    let device = pcap::Device::lookup()?;
+    println!("Opening device {}", device.name);
+    let mut cap = pcap::Capture::from_device(device)?.promisc(true).open()?;
     cap.filter("udp and port bootpc")?;
 
     let client = telegram::Client::new(&config.bot_token);
@@ -40,16 +40,14 @@ fn run() -> Result<()> {
     while let Ok(packet) = cap.next() {
         let mac_address = parse_packet(&packet);
         if let Some(notification) = config.rules.get(&mac_address) {
-            telegram::Message::new(
-                notification.chat_id,
-                format!(
-                    "[{}](t.me/{}) came home",
-                    notification.name, notification.username
-                ),
-            )
-            .send(&client)?;
+            println!(
+                "Got packet from {} ({}), notifying {}",
+                notification.name, mac_address, notification.subscriber_name
+            );
+            telegram::Message::new(notification.chat_id, notification.to_string()).send(&client)?;
+        } else {
+            println!("Got packet from unknown MAC {}", mac_address);
         }
-        println!("Sender: {:?}", mac_address);
     }
 
     Ok(())

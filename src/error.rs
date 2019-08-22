@@ -4,8 +4,10 @@ use std::path::PathBuf;
 #[derive(Debug, Snafu)]
 #[snafu(visibility = "pub(crate)")]
 pub enum Error {
-    #[snafu(display("Unknown user: {}", user))]
+    #[snafu(display("Unknown user {}", user))]
     UnknownUser { user: String },
+    #[snafu(display("Missing chat_id for '{}'", user))]
+    MissingChatId { user: String },
     #[snafu(display("PCAP error: {}", source))]
     PcapError { source: pcap::Error },
     #[snafu(display("Config file '{}' not found: {}", path.display(), source))]
