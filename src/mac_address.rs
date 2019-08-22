@@ -40,7 +40,7 @@ impl fmt::Display for MacAddress {
         let mut iter = self.0.iter();
         write!(
             f,
-            "{:2X}:{:2X}:{:2X}:{:2X}:{:2X}:{:2X}",
+            "{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
             iter.next().unwrap(),
             iter.next().unwrap(),
             iter.next().unwrap(),
@@ -54,5 +54,17 @@ impl fmt::Display for MacAddress {
 impl fmt::Debug for MacAddress {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_display() {
+        let mac_string = "00:01:02:03:04:05".to_string();
+        let mac = MacAddress::try_from(mac_string.clone()).unwrap();
+        assert_eq!(format!("{}", mac), mac_string);
     }
 }
