@@ -37,20 +37,23 @@ fn run() -> Result<()> {
 
     let client = telegram::Client::new(&config.bot_token);
 
-    while let Ok(packet) = cap.next() {
+    loop {
+        let packet = cap.next()?;
         let mac_address = parse_packet(&packet);
         if let Some(notification) = config.rules.get(&mac_address) {
             println!(
                 "Got packet from {} ({}), notifying {}",
                 notification.name, mac_address, notification.subscriber_name
             );
-            telegram::Message::new(notification.chat_id, notification.to_string()).send(&client)?;
+            if let Err(err) =
+                telegram::Message::new(notification.chat_id, notification.to_string()).send(&client)
+            {
+                println!("Error sending Telegram message: {}", err);
+            }
         } else {
             println!("Got packet from unknown MAC {}", mac_address);
         }
     }
-
-    Ok(())
 }
 
 fn main() {
