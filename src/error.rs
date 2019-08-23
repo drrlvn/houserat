@@ -19,6 +19,8 @@ pub enum Error {
     NoDevices { user: String },
     #[snafu(display("User '{}' has devices but no subscriber", user))]
     NoSubscriber { user: String },
+    #[snafu(display("Duration {:?} is out of range", value))]
+    InvalidDuration { value: std::time::Duration },
     #[snafu(display("PCAP error: {}", source))]
     PcapError { source: pcap::Error },
     #[snafu(display("Config file '{}' not found: {}", path.display(), source))]
