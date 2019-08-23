@@ -9,6 +9,7 @@ readme = "README.md"
 license = "GPL-3.0-or-later"
 
 [dependencies]
+chrono = "0.4.7"
 etherparse = "0.8.2"
 lazy_static = "1.3.0"
 pcap = "0.7.0"

@@ -41,12 +41,20 @@ fn run() -> Result<()> {
         let packet = cap.next()?;
         let mac_address = parse_packet(&packet);
         if let Some(notification) = config.rules.get(&mac_address) {
+            let is_quiet = match &config.quiet_period {
+                Some(quiet_period) => quiet_period.is_now_between(),
+                None => false,
+            };
             println!(
-                "Got packet from {} ({}), notifying {}",
-                notification.name, mac_address, notification.subscriber_name
+                "Got packet from {} ({}), notifying {} {}",
+                notification.name,
+                mac_address,
+                notification.subscriber_name,
+                if is_quiet { "quietly" } else { "loudly" }
             );
             if let Err(err) =
-                telegram::Message::new(notification.chat_id, notification.to_string()).send(&client)
+                telegram::Message::new(notification.chat_id, notification.to_string(), is_quiet)
+                    .send(&client)
             {
                 println!("Error sending Telegram message: {}", err);
             }

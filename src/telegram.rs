@@ -48,6 +48,7 @@ pub struct Message {
     text: String,
     parse_mode: String,
     disable_web_page_preview: bool,
+    disable_notification: bool,
 }
 
 impl Type for Message {
@@ -57,12 +58,13 @@ impl Type for Message {
 }
 
 impl Message {
-    pub fn new(chat_id: i64, text: String) -> Message {
+    pub fn new(chat_id: i64, text: String, disable_notification: bool) -> Message {
         Message {
             chat_id,
             text,
             parse_mode: "Markdown".to_string(),
             disable_web_page_preview: true,
+            disable_notification,
         }
     }
 

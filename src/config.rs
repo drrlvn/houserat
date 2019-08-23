@@ -1,12 +1,32 @@
 use crate::mac_address::MacAddress;
+use chrono::NaiveTime;
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use snafu::ResultExt;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::path::Path;
 
 lazy_static! {
     static ref DEFAULT_ICON: String = "👤".to_string();
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(try_from = "&str")]
+struct Time(NaiveTime);
+
+impl TryFrom<&str> for Time {
+    type Error = chrono::format::ParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(Time(NaiveTime::parse_from_str(value, "%H:%M")?))
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Period {
+    start: Time,
+    end: Time,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -23,6 +43,7 @@ struct User {
 #[derive(Debug, Deserialize)]
 struct ConfigData {
     bot_token: String,
+    quiet_period: Option<Period>,
     #[serde(rename = "user")]
     users: Vec<User>,
 }
@@ -39,6 +60,7 @@ pub struct Notification {
 #[derive(Debug)]
 pub struct Config {
     pub bot_token: String,
+    pub quiet_period: Option<Period>,
     pub rules: HashMap<MacAddress, Notification>,
 }
 
@@ -57,6 +79,21 @@ impl std::fmt::Display for Notification {
             write!(f, "](t.me/{})", username)?;
         }
         write!(f, " arrived")
+    }
+}
+
+impl Period {
+    pub fn is_now_between(&self) -> bool {
+        let now = chrono::Local::now().naive_local().time();
+        self._is_between(now)
+    }
+
+    fn _is_between(&self, time: NaiveTime) -> bool {
+        if self.start.0 <= self.end.0 {
+            time >= self.start.0 && time <= self.end.0
+        } else {
+            time >= self.start.0 || time <= self.end.0
+        }
     }
 }
 
@@ -119,6 +156,7 @@ impl Config {
         }
         Ok(Config {
             bot_token: config_data.bot_token,
+            quiet_period: config_data.quiet_period,
             rules,
         })
     }
@@ -127,5 +165,26 @@ impl Config {
 fn unknown_user(user: &str) -> crate::error::Error {
     crate::error::Error::UnknownUser {
         user: user.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::convert::TryInto;
+
+    #[test]
+    fn test_period() {
+        let now = NaiveTime::parse_from_str("23:30", "%H:%M").unwrap();
+        let period1 = Period {
+            start: "23:00".try_into().unwrap(),
+            end: "06:00".try_into().unwrap(),
+        };
+        let period2 = Period {
+            start: "00:00".try_into().unwrap(),
+            end: "06:00".try_into().unwrap(),
+        };
+        assert_eq!(period1._is_between(now), true);
+        assert_eq!(period2._is_between(now), false);
     }
 }

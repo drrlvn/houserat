@@ -1,5 +1,9 @@
 bot_token = "<token>" # Telegram bot token (https://core.telegram.org/bots/api#authorizing-your-bot)
 
+[quiet_period] # Optional, indicating time period when message will have disabled notifications
+start = "23:00"
+end = "06:00"
+
 [[user]]
 name = "User 1" # Name of user
 icon = "👩" # Optional icon to identify user
