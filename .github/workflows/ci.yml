@@ -10,7 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Install libpcap
-      run: sudo apt install libpcap0.8
+      run: sudo apt install libpcap-dev
     - name: Update rust
       run: rustup update
     - name: Format
