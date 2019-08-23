@@ -2,7 +2,7 @@ use serde::Deserialize;
 use std::convert::TryFrom;
 use std::fmt;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Deserialize)]
 #[serde(try_from = "String")]
 pub struct MacAddress([u8; 6]);
 
@@ -23,12 +23,12 @@ impl TryFrom<String> for MacAddress {
             *octet = if let Some(Ok(n)) = nums.next() {
                 n
             } else {
-                return Err(Self::Error::InvalidMacAddressError { value });
+                return Err(Self::Error::InvalidMacAddress { value });
             }
         }
 
         if nums.next().is_some() {
-            return Err(Self::Error::InvalidMacAddressError { value });
+            return Err(Self::Error::InvalidMacAddress { value });
         }
 
         Ok(MacAddress(mac_addresses))

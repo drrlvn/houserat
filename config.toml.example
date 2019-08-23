@@ -1,21 +1,16 @@
-bot_token = "<token>"
+bot_token = "<token>" # Telegram bot token (https://core.telegram.org/bots/api#authorizing-your-bot)
 
 [[user]]
-name = "User 1"
-username = "user1"
-chat_id = 123456
+name = "User 1" # Name of user
+icon = "👩" # Optional icon to identify user
+username = "user1" # Optional username to link to in notification
+chat_id = 123456 # Chat ID for bot to notify in, required if user is a subscriber
+subscriber = "User 2" # Who to notify, requires at least one device
+devices = ["01:23:45:67:89:AB"] # MAC addresses belonging to user, required if user has subscriber
 
 [[user]]
 name = "User 2"
 username = "user2"
 chat_id = 654321
-
-[[device]]
-mac_address = "01:23:45:67:89:AB"
-owner = "User 1"
-subscriber = "User 2"
-
-[[device]]
-mac_address = "00:11:22:33:44:55"
-owner = "User 2"
 subscriber = "User 1"
+devices = ["00:11:22:33:44:55"]
