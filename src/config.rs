@@ -4,29 +4,43 @@ use lazy_static::lazy_static;
 use serde::Deserialize;
 use snafu::ResultExt;
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::path::Path;
 
 lazy_static! {
     static ref DEFAULT_ICON: String = "👤".to_string();
 }
 
-#[derive(Clone, Debug, Deserialize)]
-#[serde(try_from = "&str")]
-struct Time(NaiveTime);
+pub fn deserialize_naivetime<'de, D>(d: D) -> Result<NaiveTime, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    struct V;
 
-impl TryFrom<&str> for Time {
-    type Error = chrono::format::ParseError;
+    impl<'de2> serde::de::Visitor<'de2> for V {
+        type Value = NaiveTime;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Ok(Time(NaiveTime::parse_from_str(value, "%H:%M")?))
+        fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fmt.write_str("a naive time")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            NaiveTime::parse_from_str(v, "%H:%M")
+                .map_err(|_| E::invalid_value(serde::de::Unexpected::Str(v), &self))
+        }
     }
+
+    d.deserialize_str(V)
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Period {
-    start: Time,
-    end: Time,
+    #[serde(deserialize_with = "deserialize_naivetime")]
+    start: NaiveTime,
+    #[serde(deserialize_with = "deserialize_naivetime")]
+    end: NaiveTime,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -89,10 +103,10 @@ impl Period {
     }
 
     fn _is_between(&self, time: NaiveTime) -> bool {
-        if self.start.0 <= self.end.0 {
-            time >= self.start.0 && time <= self.end.0
+        if self.start <= self.end {
+            time >= self.start && time <= self.end
         } else {
-            time >= self.start.0 || time <= self.end.0
+            time >= self.start || time <= self.end
         }
     }
 }
