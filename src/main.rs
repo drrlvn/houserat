@@ -11,7 +11,7 @@ mod mac_address;
 mod telegram;
 
 #[derive(Debug, structopt::StructOpt)]
-#[structopt(rename_all = "kebab-case")]
+#[structopt(about)]
 struct Opt {
     #[structopt(long, default_value = "config.toml")]
     config_file: PathBuf,
