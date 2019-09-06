@@ -1,15 +1,11 @@
-use crate::mac_address::MacAddress;
 use chrono::NaiveTime;
-use lazy_static::lazy_static;
+use pnet::util::MacAddr;
 use serde::Deserialize;
 use snafu::ResultExt;
 use std::collections::HashMap;
+use std::net::Ipv4Addr;
 use std::path::Path;
 use std::time::Duration;
-
-lazy_static! {
-    static ref DEFAULT_ICON: String = "👤".to_string();
-}
 
 pub fn deserialize_naivetime<'de, D>(d: D) -> Result<NaiveTime, D::Error>
 where
@@ -44,60 +40,48 @@ pub struct Period {
     end: NaiveTime,
 }
 
-#[derive(Clone, Debug, Deserialize)]
-struct User {
-    name: String,
-    icon: Option<String>,
-    username: Option<String>,
+#[derive(Debug, Deserialize)]
+struct User<'a> {
+    name: &'a str,
+    icon: Option<&'a str>,
+    username: Option<&'a str>,
     chat_id: Option<i64>,
-    subscriber: Option<String>,
+    subscriber: Option<&'a str>,
     #[serde(default)]
-    devices: Vec<MacAddress>,
+    devices: Vec<MacAddr>,
 }
 
 #[derive(Debug, Deserialize)]
-struct ConfigData {
-    bot_token: String,
+struct ConfigData<'a> {
+    interface: &'a str,
+    bot_token: &'a str,
     #[serde(with = "humantime_serde")]
     cooldown: Option<Duration>,
     quiet_period: Option<Period>,
-    #[serde(rename = "user")]
-    users: Vec<User>,
+    #[serde(borrow, rename = "user")]
+    users: Vec<User<'a>>,
 }
 
 #[derive(Debug)]
-pub struct Notification {
+pub struct Interface {
     pub name: String,
-    pub icon: Option<String>,
-    pub username: Option<String>,
-    pub subscriber_name: String,
-    pub chat_id: i64,
+    pub index: u32,
+    pub addresses: NetworkAddresses,
+}
+
+#[derive(Debug)]
+pub struct NetworkAddresses {
+    pub mac: MacAddr,
+    pub ip: Ipv4Addr,
 }
 
 #[derive(Debug)]
 pub struct Config {
+    pub interface: Interface,
     pub bot_token: String,
     pub cooldown: Option<chrono::Duration>,
     pub quiet_period: Option<Period>,
-    pub rules: HashMap<MacAddress, Notification>,
-}
-
-impl std::fmt::Display for Notification {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if self.username.is_some() {
-            write!(f, "[")?;
-        }
-        write!(
-            f,
-            "{} {}",
-            self.icon.as_ref().unwrap_or(&*DEFAULT_ICON),
-            self.name
-        )?;
-        if let Some(username) = &self.username {
-            write!(f, "](t.me/{})", username)?;
-        }
-        write!(f, " arrived")
-    }
+    pub rules: HashMap<MacAddr, crate::Metadata>,
 }
 
 impl Period {
@@ -110,13 +94,22 @@ impl Period {
     }
 }
 
+impl NetworkAddresses {
+    pub fn new(mac: MacAddr, ip: Ipv4Addr) -> NetworkAddresses {
+        NetworkAddresses { mac, ip }
+    }
+}
+
 impl Config {
     pub fn from_file<P: AsRef<Path>>(path: P) -> crate::Result<Config> {
         let path = path.as_ref();
-        let config_content = std::fs::read(path).with_context(|| crate::error::ConfigNotFound {
-            path: path.to_path_buf(),
-        })?;
-        let config_data: ConfigData = toml::from_slice(&config_content)?;
+        let config_content =
+            std::fs::read_to_string(path).with_context(|| crate::error::ConfigNotFound {
+                path: path.to_path_buf(),
+            })?;
+        let config_data: ConfigData = toml::from_str(&config_content)?;
+
+        let interface = Interface::from_name(config_data.interface)?;
 
         let cooldown = if let Some(cooldown) = config_data.cooldown {
             Some(
@@ -127,25 +120,24 @@ impl Config {
             None
         };
 
-        let users: HashMap<&String, &User> =
-            config_data.users.iter().map(|u| (&u.name, u)).collect();
-        let mut rules: HashMap<MacAddress, Notification> = HashMap::new();
+        let users: HashMap<&str, &User> = config_data.users.iter().map(|u| (u.name, u)).collect();
+        let mut rules: HashMap<MacAddr, crate::Metadata> = HashMap::new();
         for user in &config_data.users {
             let subscriber = match &user.subscriber {
                 Some(subscriber) => {
                     if user.devices.is_empty() {
                         return Err(crate::error::Error::NoDevices {
-                            user: user.name.clone(),
+                            user: user.name.into(),
                         });
                     }
                     users
-                        .get(&subscriber)
+                        .get(subscriber)
                         .ok_or_else(|| unknown_user(&subscriber))?
                 }
                 None => {
                     if !user.devices.is_empty() {
                         return Err(crate::error::Error::NoSubscriber {
-                            user: user.name.clone(),
+                            user: user.name.into(),
                         });
                     }
                     continue;
@@ -154,32 +146,33 @@ impl Config {
             let chat_id = subscriber
                 .chat_id
                 .ok_or_else(|| crate::error::Error::MissingChatId {
-                    user: subscriber.name.clone(),
+                    user: subscriber.name.into(),
                 })?;
             for device in &user.devices {
                 rules
                     .insert(
                         device.clone(),
-                        Notification {
-                            name: user.name.clone(),
-                            icon: user.icon.clone(),
-                            username: user.username.clone(),
-                            subscriber_name: subscriber.name.clone(),
+                        crate::Metadata::new(
+                            user.name.into(),
+                            user.icon.map(|s| s.into()),
+                            user.username.map(|s| s.into()),
+                            subscriber.name.into(),
                             chat_id,
-                        },
+                        ),
                     )
                     .map_or(Ok(()), |v| {
                         Err(crate::error::Error::DuplicateDevice {
                             device: device.clone(),
-                            user: user.name.clone(),
-                            orig_user: v.name,
+                            user: user.name.into(),
+                            orig_user: v.name.into(),
                         })
                     })?;
             }
         }
 
         Ok(Config {
-            bot_token: config_data.bot_token,
+            interface,
+            bot_token: config_data.bot_token.into(),
             cooldown,
             quiet_period: config_data.quiet_period,
             rules,
@@ -187,10 +180,50 @@ impl Config {
     }
 }
 
-fn unknown_user(user: &str) -> crate::error::Error {
-    crate::error::Error::UnknownUser {
-        user: user.to_string(),
+impl Interface {
+    fn from_name(name: &str) -> crate::Result<Interface> {
+        let interface = match pnet::datalink::interfaces()
+            .into_iter()
+            .find(|iface| iface.name == name)
+        {
+            Some(interface) => interface,
+            None => {
+                return Err(crate::error::Error::UnknownInterface {
+                    interface: name.into(),
+                })
+            }
+        };
+        let mac = match interface.mac {
+            Some(mac) => mac,
+            None => {
+                return Err(crate::error::Error::BadInterface {
+                    interface: interface.name,
+                })
+            }
+        };
+        let ip = match interface
+            .ips
+            .into_iter()
+            .find(|ip| ip.is_ipv4())
+            .map(|ip| ip.ip())
+        {
+            Some(std::net::IpAddr::V4(ip)) => ip,
+            _ => {
+                return Err(crate::error::Error::BadInterface {
+                    interface: interface.name,
+                })
+            }
+        };
+        Ok(Interface {
+            name: interface.name,
+            index: interface.index,
+            addresses: NetworkAddresses::new(mac, ip),
+        })
     }
+}
+
+fn unknown_user(user: &str) -> crate::error::Error {
+    crate::error::Error::UnknownUser { user: user.into() }
 }
 
 #[cfg(test)]

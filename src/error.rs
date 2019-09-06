@@ -1,17 +1,21 @@
-use crate::mac_address::MacAddress;
+use pnet::util::MacAddr;
 use snafu::Snafu;
 use std::path::PathBuf;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility = "pub(crate)")]
 pub enum Error {
+    #[snafu(display("Unknown interface {}", interface))]
+    UnknownInterface { interface: String },
+    #[snafu(display("Interface {} has no MAC or IP", interface))]
+    BadInterface { interface: String },
     #[snafu(display("Unknown user {}", user))]
     UnknownUser { user: String },
     #[snafu(display("Missing chat_id for '{}'", user))]
     MissingChatId { user: String },
     #[snafu(display("User '{}' has same device {} as '{}'", user, device, orig_user))]
     DuplicateDevice {
-        device: MacAddress,
+        device: MacAddr,
         user: String,
         orig_user: String,
     },
@@ -21,8 +25,6 @@ pub enum Error {
     NoSubscriber { user: String },
     #[snafu(display("Duration {:?} is out of range", value))]
     InvalidDuration { value: std::time::Duration },
-    #[snafu(display("PCAP error: {}", source))]
-    PcapError { source: pcap::Error },
     #[snafu(display("Config file '{}' not found: {}", path.display(), source))]
     ConfigNotFound {
         path: PathBuf,
@@ -30,8 +32,14 @@ pub enum Error {
     },
     #[snafu(display("Invalid config: {}", source))]
     ConfigError { source: toml::de::Error },
-    #[snafu(display("Invalid MAC address '{}'", value))]
-    InvalidMacAddress { value: String },
+    #[snafu(display("PCAP error: {}", source))]
+    PcapError { source: pcap::Error },
+    #[snafu(display("PCAP thread exited: {}", source))]
+    RecvError {
+        source: crossbeam_channel::RecvError,
+    },
+    #[snafu(display("Failed to send ARP packet: {}", source))]
+    SendError { source: std::io::Error },
     #[snafu(display("Failed communicating with Telegram: {}", source))]
     TelegramError { source: reqwest::Error },
 }
@@ -39,6 +47,12 @@ pub enum Error {
 impl From<pcap::Error> for Error {
     fn from(error: pcap::Error) -> Self {
         Error::PcapError { source: error }
+    }
+}
+
+impl From<crossbeam_channel::RecvError> for Error {
+    fn from(error: crossbeam_channel::RecvError) -> Self {
+        Error::RecvError { source: error }
     }
 }
 

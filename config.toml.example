@@ -1,3 +1,4 @@
+interface = "en???" # Name of network interface to use
 bot_token = "<token>" # Telegram bot token (https://core.telegram.org/bots/api#authorizing-your-bot)
 cooldown = "5m" # Optional duration to wait before sending another notification for the same user
 
