@@ -162,9 +162,9 @@ impl Config {
                     )
                     .map_or(Ok(()), |v| {
                         Err(crate::error::Error::DuplicateDevice {
-                            device: device.clone(),
+                            device: *device,
                             user: user.name.into(),
-                            orig_user: v.name.into(),
+                            orig_user: v.name,
                         })
                     })?;
             }

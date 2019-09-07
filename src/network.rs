@@ -46,14 +46,11 @@ pub fn parse_packet(data: &[u8]) -> Event {
 
 fn parse_ipv4_packet(ethernet: &EthernetPacket) -> Event {
     let header = try_event!(Ipv4Packet::new(ethernet.payload()));
-    match header.get_next_level_protocol() {
-        IpNextHeaderProtocols::Udp => {
-            let udp = try_event!(UdpPacket::new(header.payload()));
-            if udp.get_source() == 68 && udp.get_destination() == 67 {
-                return Event::Connected(ethernet.get_source());
-            }
+    if let IpNextHeaderProtocols::Udp = header.get_next_level_protocol() {
+        let udp = try_event!(UdpPacket::new(header.payload()));
+        if udp.get_source() == 68 && udp.get_destination() == 67 {
+            return Event::Connected(ethernet.get_source());
         }
-        _ => (),
     }
     Event::Ignored
 }

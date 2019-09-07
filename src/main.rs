@@ -82,6 +82,7 @@ impl HouseRat {
 
         let clock = crossbeam_channel::tick(std::time::Duration::from_secs(TICK_SECS.into()));
 
+        #[allow(clippy::drop_copy, clippy::zero_ptr)]
         loop {
             select! {
                 recv(r) -> event => match event? {
