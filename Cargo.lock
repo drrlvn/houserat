@@ -398,7 +398,7 @@ dependencies = [
 
 [[package]]
 name = "houserat"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam-channel 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
