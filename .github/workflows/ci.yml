@@ -1,23 +1,49 @@
 name: CI
 
-on: [push]
+on:
+  push:
+    branches:
+      - master
+    tags:
+  pull_request:
 
 jobs:
-  build:
-
+  format:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v1
-    - name: Install libpcap
-      run: sudo apt install libpcap-dev
-    - name: Update rust
-      run: rustup update
+    - uses: hecrj/setup-rust-action@master
+    - uses: actions/checkout@master
     - name: Format
       run: cargo fmt -- --check
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: hecrj/setup-rust-action@master
+    - uses: actions/checkout@master
     - name: Clippy
-      run: cargo clippy -- -D warnings
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: hecrj/setup-rust-action@master
+    - uses: actions/checkout@master
     - name: Check
-      run: cargo check
+      run: cargo check --all-targets --all-features
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [format, lint, build]
+    strategy:
+      matrix:
+        rust: [stable, nightly]
+    steps:
+    - uses: hecrj/setup-rust-action@master
+      with:
+        rust-version: ${{ matrix.rust }}
+    - name: Install dependencies
+      run: sudo apt install libpcap-dev
+    - uses: actions/checkout@master
     - name: Test
-      run: cargo test
+      run: cargo test --all-features
