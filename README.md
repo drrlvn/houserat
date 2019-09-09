@@ -14,6 +14,19 @@ using Telegram when these devices connect or disconnect.
    ([example](config.example.toml)).
 1. Enable and start service: `systemctl enable --now houserat`.
 
+### 🤖 Bot Configuration
+
+Once you have your bot token you'll need to get chat IDs for every user that subscribes to
+notifications. The easiest way to do that is:
+
+1. Have the user start a conversation with the bot or send any message to it.
+1. Open `https://api.telegram.org/bot<token>/getUpdates` in a browser (replacing `<token>` with your
+bot token) and look for the chat ID, it should be in `message.chat.id` in the `result` array.
+1. Put the chat ID you found in the `chat_id` field for that user in `config.toml`.
+1. Optionally clearing the updates list by going back to the Telegram `getUpdates` API method and
+   adding `?offset=<update_id+1>`, where the `update_id` is found in the result.  This would make it
+   easier to find other chat IDs when repeating this process.
+
 ## 💫 How It Works
 
 *Houserat* detects devices connecting to the network when they send a DHCP request packet. It will
