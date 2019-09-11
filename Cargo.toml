@@ -26,4 +26,4 @@ toml = "0.5.3"
 url = "1.7.2"
 
 [profile.release]
-lto = true
+lto = "thin"
