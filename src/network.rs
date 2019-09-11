@@ -17,8 +17,7 @@ use std::net::Ipv4Addr;
 pub enum Event {
     Ignored,
     Connected(MacAddr),
-    Announced { mac: MacAddr, ip: Ipv4Addr },
-    Responded(MacAddr),
+    Alive { mac: MacAddr, ip: Ipv4Addr },
 }
 
 macro_rules! try_event {
@@ -57,17 +56,15 @@ fn parse_ipv4_packet(ethernet: &EthernetPacket) -> Event {
 
 fn parse_arp_packet(ethernet: &EthernetPacket) -> Event {
     let header = try_event!(ArpPacket::new(ethernet.payload()));
-    match header.get_operation() {
-        ArpOperations::Request => {
-            if header.get_sender_proto_addr() == header.get_target_proto_addr() {
-                return Event::Announced {
-                    mac: header.get_sender_hw_addr(),
-                    ip: header.get_sender_proto_addr(),
-                };
-            }
-        }
-        ArpOperations::Reply => return Event::Responded(header.get_sender_hw_addr()),
-        _ => (),
+    let op = header.get_operation();
+    if (op == ArpOperations::Request
+        && header.get_sender_proto_addr() == header.get_target_proto_addr())
+        || op == ArpOperations::Reply
+    {
+        return Event::Alive {
+            mac: header.get_sender_hw_addr(),
+            ip: header.get_sender_proto_addr(),
+        };
     }
     Event::Ignored
 }

@@ -41,14 +41,20 @@ pub struct Period {
 }
 
 #[derive(Debug, Deserialize)]
+struct ConfigDevice<'a> {
+    hostname: Option<&'a str>,
+    mac: MacAddr,
+}
+
+#[derive(Debug, Deserialize)]
 struct User<'a> {
     name: &'a str,
     icon: Option<&'a str>,
     username: Option<&'a str>,
     chat_id: Option<i64>,
     subscriber: Option<&'a str>,
-    #[serde(default)]
-    devices: Vec<MacAddr>,
+    #[serde(default, rename = "device")]
+    devices: Vec<ConfigDevice<'a>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -76,12 +82,19 @@ pub struct NetworkAddresses {
 }
 
 #[derive(Debug)]
+pub struct Device {
+    pub hostname: String,
+    pub mac: MacAddr,
+}
+
+#[derive(Debug)]
 pub struct Config {
     pub interface: Interface,
     pub bot_token: String,
     pub cooldown: Option<chrono::Duration>,
     pub quiet_period: Option<Period>,
     pub rules: HashMap<MacAddr, crate::Metadata>,
+    pub devices: Vec<Device>,
 }
 
 impl Period {
@@ -122,6 +135,7 @@ impl Config {
 
         let users: HashMap<&str, &User> = config_data.users.iter().map(|u| (u.name, u)).collect();
         let mut rules: HashMap<MacAddr, crate::Metadata> = HashMap::new();
+        let mut devices = Vec::new();
         for user in &config_data.users {
             let subscriber = match &user.subscriber {
                 Some(subscriber) => {
@@ -149,9 +163,15 @@ impl Config {
                     user: subscriber.name.into(),
                 })?;
             for device in &user.devices {
+                if let Some(hostname) = device.hostname {
+                    devices.push(Device {
+                        hostname: hostname.into(),
+                        mac: device.mac,
+                    });
+                }
                 rules
                     .insert(
-                        device.clone(),
+                        device.mac,
                         crate::Metadata::new(
                             user.name.into(),
                             user.icon.map(|s| s.into()),
@@ -162,7 +182,7 @@ impl Config {
                     )
                     .map_or(Ok(()), |v| {
                         Err(crate::error::Error::DuplicateDevice {
-                            device: *device,
+                            device: device.mac,
                             user: user.name.into(),
                             orig_user: v.name,
                         })
@@ -176,6 +196,7 @@ impl Config {
             cooldown,
             quiet_period: config_data.quiet_period,
             rules,
+            devices,
         })
     }
 }
