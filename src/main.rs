@@ -122,13 +122,14 @@ impl HouseRat {
         drop(resolve_s);
         let mut resolve_r = Some(&resolve_r);
 
-        let clock = crossbeam_channel::tick(std::time::Duration::from_secs(TICK_SECS.into()));
+        let mut t;
+        let mut clock = None;
 
         #[allow(clippy::drop_copy, clippy::zero_ptr)]
         loop {
             select! {
                 recv(cap_r) -> event => self.handle_event(event?),
-                recv(clock) -> _ => self.handle_clock(),
+                recv(clock.unwrap_or(&never())) -> _ => self.handle_clock(),
                 recv(resolve_r.unwrap_or(&never())) -> device => match device {
                     Ok((mac, ip)) => self.handle_resolve(mac, ip),
                     Err(_) => {
@@ -136,6 +137,18 @@ impl HouseRat {
                         self.devices = None;
                     }
                 },
+            }
+            match (self.online.is_empty(), clock) {
+                (true, Some(_)) => {
+                    println!("No devices online, disabling clock");
+                    clock = None;
+                }
+                (false, None) => {
+                    println!("Devices online, enabling clock");
+                    t = crossbeam_channel::tick(std::time::Duration::from_secs(TICK_SECS.into()));
+                    clock = Some(&t);
+                }
+                _ => (),
             }
         }
     }
@@ -170,9 +183,6 @@ impl HouseRat {
                             vacant.insert(Tracking { ip, outstanding: 0 });
                         }
                     }
-                }
-                if let Some(tracking) = self.online.get_mut(&mac) {
-                    tracking.outstanding = 0;
                 }
             }
             Event::Ignored => (),
