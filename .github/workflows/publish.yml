@@ -1,0 +1,16 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  crates-io:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: hecrj/setup-rust-action@master
+    - uses: actions/checkout@master
+    - name: crates.io
+      run: |
+        cargo login ${{ secrets.CARGO_TOKEN }}
+        cargo publish
